@@ -29,7 +29,7 @@ def fix_tags(filename, isvarious=0):
     changed = False
 
     metaflac = MetaFlac(filename)
-    flac_comment = metaflac.get_vorbis_comment()
+    flac_comment, changed = metaflac.get_vorbis_comment()
 
     tags_file = '%d.tag' % (os.getpid())
     tf = Path(tags_file)

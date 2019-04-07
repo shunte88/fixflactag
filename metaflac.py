@@ -4,8 +4,11 @@ import codecs
 from collections import defaultdict
 
 # https://xiph.org/flac/format.html#metadata_block
-# All numbers used in a FLAC bitstream are integers; there are no floating-point representations. 
-# All numbers are big-endian coded. All numbers are unsigned unless otherwise specified.
+# All numbers used in a FLAC bitstream are integers; 
+# there are no floating-point representations. 
+# All numbers are big-endian coded. 
+# All numbers are unsigned unless otherwise specified.
+
 
 class MetaFlac:
 
@@ -16,57 +19,54 @@ class MetaFlac:
         self.__block_vorbis_comment = None
         self.__block_cuesheet = None
         self.__block_picture = None
-        
+
         with io.open(filename, 'rb') as file:
             self.__parse_marker(file.read(4))
-            
+
             last = 0
             while not last:
                 last, block_type, size = self.__parse_block_header(file.read(4))
-            
+
                 if block_type == 0:
                     self.__block_streaminfo = file.read(size)
-                    
+
                 elif block_type == 1:
                     file.read(size)
-                    
+
                 elif block_type == 2:
                     self.__block_application = file.read(size)
-                    
+
                 elif block_type == 3:
                     self.__block_seektable = file.read(size)
-                    
+
                 elif block_type == 4:
                     self.__block_vorbis_comment = file.read(size)
-                    
+
                 elif block_type == 5:
                     self.__block_cuesheet = file.read(size)
-                    
+
                 elif block_type == 6:
                     self.__block_picture = file.read(size)
-                    
+
                 elif block_type < 127:
                     print (block_type)
                     raise NotImplementedError('reserved')
-                    
+
                 else:
                     raise NotImplementedError('invalid, to avoid confusion with a frame sync code')
-    
-    
+
     def __parse_marker(self, block):
         # "fLaC", the FLAC stream marker in ASCII
         if block != b'fLaC':
             raise Exception('%s is not valid flac header' % block)
-    
-    
+
     def __parse_block_header(self, block):
         unpacked = struct.unpack('>I', block)[0]
-        last = unpacked >> 31 # Last-metadata-block flag: '1' if this block is the last metadata block before the audio blocks, '0' otherwise.
+        last = unpacked >> 31  # Last-metadata-block flag: '1' if this block is the last metadata block before the audio blocks, '0' otherwise.
         block_type = unpacked >> 24 & 0x7f
-        size = unpacked & 0x00ffffff # Length (in bytes) of metadata to follow.
+        size = unpacked & 0x00ffffff  # Length (in bytes) of metadata to follow.
         return last, block_type, size
-    
-    
+
     def get_streaminfo(self):
         if not self.__block_streaminfo:
             return None
@@ -85,8 +85,7 @@ class MetaFlac:
         streaminfo['sample_rate'] = unpacked >> 3 # (20bits) Sample rate in Hz.
         streaminfo['md5'] = block[18:34] # (128bits) MD5 signature of the unencoded audio data.
         return streaminfo
-    
-    
+
     def get_application(self):
         # The ID request should be 8 hexadecimal digits
         if not self.__block_application:
@@ -96,8 +95,7 @@ class MetaFlac:
         application['registered_id'] = hex(struct.unpack('>I', block[0:4])[0]) # (32bits) Registered application ID.
         application['data'] = block[4:]
         return application
-    
-    
+
     def get_seektable(self):
         if not self.__block_seektable:
             return None
@@ -109,8 +107,7 @@ class MetaFlac:
             seekpoint = (number, offset, samples)
             seektable.append(seekpoint)
         return seektable
-    
-    
+
     def get_picture(self):
         if not self.__block_picture:
             return None
@@ -130,8 +127,7 @@ class MetaFlac:
         length = struct.unpack('>I', block[16:20])[0] # (32bits) The length of the picture data in bytes.
         picture['data'] = block[20:20+length] # (n*8bites) The binary picture data.
         return picture
-    
-    
+
     def get_vorbis_comment(self):
         # https://www.xiph.org/vorbis/doc/v-comment.html
         # note that the 32-bit field lengths are little-endian coded according to the vorbis spec, as opposed to the usual big-endian coding of fixed-length integers in the rest of FLAC.
@@ -145,6 +141,7 @@ class MetaFlac:
         block = block[4+vendorLength:]
         userCommentListLength = struct.unpack('I', block[0:4])[0] # (32bits) user_comment_list_length
         block = block[4:]
+        expanded = False
         for i in range(userCommentListLength):
             length = struct.unpack('I', block[0:4])[0]
             user_comment = codecs.decode(block[4:4+length], 'UTF-8')
@@ -155,10 +152,11 @@ class MetaFlac:
                 # support multiple entries for genre, artist etc
                 if ';' in value:
                     for value in value.split(';'):
+                        expanded = True
                         value = value.strip()
                         if value:
                             vorbis_comment[key].append(value)
                 else:
                     vorbis_comment[key].append(value)
-        return vorbis_comment
+        return vorbis_comment, expanded
 
