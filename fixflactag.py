@@ -38,8 +38,8 @@ def fix_tags(filename, isvarious=0):
         tf.unlink()
 
     # add the replaygain bump for vinyl rips
-    if 'CONTACT' in flac_comment and
-    'VinylStudio' == flac_comment['CONTACT'][0]:
+    if 'CONTACT' in flac_comment and \
+       'VinylStudio' == flac_comment['CONTACT'][0]:
         if 'REPLAYGAIN_TRACK_GAIN' not in flac_comment:
             flac_comment['REPLAYGAIN_TRACK_GAIN'].append('+4.50')
             logging.debug('Adding REPLAYGAIN_TRACK_GAIN Tag')
@@ -54,8 +54,9 @@ def fix_tags(filename, isvarious=0):
 
     # patch for missing album artist
     # isvarious we hould really delete the album artist tag if exists
-    if 0 == isvarious and 'ALBUMARTIST' not in flac_comment and
-    'ALBUM ARTIST' not in flac_comment:
+    if 0 == isvarious and \
+       'ALBUMARTIST' not in flac_comment and \
+       'ALBUM ARTIST' not in flac_comment:
         for artist in flac_comment['ARTIST']:
             flac_comment['ALBUMARTIST'].append(artist)
             logging.debug('Adding ALBUMARTIST Tag')
