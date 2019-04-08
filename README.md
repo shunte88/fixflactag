@@ -15,7 +15,7 @@ And, finally it adds tags that are missing
 Leverages a modified version of metaflac that supports multi-value tags
 
 
-Almost pure python3 only requires the metaflac command line utility and should be cross-platform - the later is untested
+Almost pure python3 only requires the metaflac and metadsf command line utilities and should be cross-platform - the later is untested
 
 
 Could likely do all of this with mutagen but as yet I've not found a simple recipe

@@ -8,6 +8,7 @@ import subprocess
 import glob
 from pathlib import Path
 from metaflac import MetaFlac
+from metadsf import MetaDsf
 
 
 def run_command(cmd, exc=0):
@@ -24,7 +25,46 @@ def run_command(cmd, exc=0):
     return False
 
 
-def fix_tags(filename, isvarious=0):
+def add_delimited_tag(tag, tags=None):
+    if tags:
+        return '{},{}'.format(tags, tag)
+    else:
+        return tag
+
+
+def fix_dsf_tags(filename, isvarious=0):
+
+    changed = False
+    remove_tags = None
+
+    metadsf = MetaDsf(filename)
+    dsf_tags = metadsf.get_id3_tags()
+
+    if 'TENC' in dsf_tags and 'VinylStudio' == dsf_tags['TENC']:
+        dsf_tags.pop('TENC', None)
+        remove_tags = add_delimited_tag('TENC', remove_tags)
+        logging.debug('Delete TENC Tag')
+        changed = True
+
+    if 'TIT1' in dsf_tags and \
+       'COMM' in dsf_tags and \
+       dsf_tags['TIT1'] == dsf_tags['COMM']:
+        dsf_tags.pop('TIT1', None)
+        remove_tags = add_delimited_tag('TIT1', remove_tags)
+        logging.debug('Delete TIT1 Tag')
+        changed = True
+
+    if changed:
+        logging.debug('Rewrite DSF tags on "{}"'.format(filename))
+        # metadsf command line - heavily buttoned down
+        cmd = 'metadsf --encoding=UTF8'
+        if remove_tags:
+            cmd += ' --remove-tags={}'.format(remove_tags)
+        cmd += ' "{}"'.format(filename)
+        run_command(cmd, 1)
+
+
+def fix_flac_tags(filename, isvarious=0):
 
     changed = False
 
@@ -90,9 +130,15 @@ def fix_tags(filename, isvarious=0):
 
 def main(args):
 
+    logging.info('Processing FLAC')
     pathlist = Path(args.folder).glob('*/*.flac')
     for path in sorted(pathlist):
-        fix_tags(str(path), args.various)
+        fix_flac_tags(str(path), args.various)
+
+    logging.info('Processing DSF')
+    pathlist = Path(args.folder).glob('*/*.dsf')
+    for path in sorted(pathlist):
+        fix_dsf_tags(str(path), args.various)
 
 
 log_file = '/tmp/flactag.log'
