@@ -32,10 +32,16 @@ def add_delimited_tag(tag, tags=None):
         return tag
 
 
-def fix_dsf_tags(filename, isvarious=0):
+def fix_dsf_tags(filename,
+                 isvarious=0,
+                 replay_gain='+5.500000 dB',
+                 discnumber=-1,
+                 disctotal=-1,
+                 tracktotal=-1):
 
     changed = False
     remove_tags = None
+    add_tags = None
 
     metadsf = MetaDsf(filename)
     dsf_tags = metadsf.get_id3_tags()
@@ -54,17 +60,31 @@ def fix_dsf_tags(filename, isvarious=0):
         logging.debug('Delete TIT1 Tag')
         changed = True
 
+    if 'TORY' not in dsf_tags and \
+       'TDRC' in dsf_tags:
+        dsf_tags['TORY'] = dsf_tags['TDRC']
+        add_tags = '--add-tag=TORY={}'.format(dsf_tags['TDRC'])
+        logging.debug('Add TORY Tag')
+        changed = True
+
     if changed:
         logging.debug('Rewrite DSF tags on "{}"'.format(filename))
         # metadsf command line - heavily buttoned down
         cmd = 'metadsf --encoding=UTF8'
         if remove_tags:
             cmd += ' --remove-tags={}'.format(remove_tags)
+        if add_tags:
+            cmd += ' {}'.format(add_tags)
         cmd += ' "{}"'.format(filename)
         run_command(cmd, 1)
 
 
-def fix_flac_tags(filename, isvarious=0):
+def fix_flac_tags(filename,
+                  isvarious=0,
+                  replay_gain='+5.500000 dB',
+                  discnumber=-1,
+                  disctotal=-1,
+                  tracktotal=-1):
 
     changed = False
 
@@ -81,7 +101,7 @@ def fix_flac_tags(filename, isvarious=0):
     if 'CONTACT' in flac_comment and \
        'VinylStudio' == flac_comment['CONTACT'][0]:
         if 'REPLAYGAIN_TRACK_GAIN' not in flac_comment:
-            flac_comment['REPLAYGAIN_TRACK_GAIN'].append('+4.50')
+            flac_comment['REPLAYGAIN_TRACK_GAIN'].append(replay_gain)
             logging.debug('Adding REPLAYGAIN_TRACK_GAIN Tag')
             changed = True
 
@@ -110,6 +130,20 @@ def fix_flac_tags(filename, isvarious=0):
                 logging.debug('Adding YEAR Tag')
                 changed = True
 
+    if (discnumber+disctotal+tracktotal) > 0:
+        for test_tag in ('DISCNUMBER', 'DISCTOTAL', 'TRACKTOTAL'):
+            if test_tag not in flac_comment:
+                if 'DISCNUMBER' == test_tag:
+                    value = discnumber
+                elif 'DISCTOTAL' == test_tag:
+                    value = disctotal
+                else:
+                    value = tracktotal
+                if value > 0:
+                    flac_comment[test_tag].append(value)
+                    logging.debug('Adding {} Tag'.format(test_tag))
+                    changed = True
+
     if changed:
         logging.debug('Rewrite FLAC tags on "{}"'.format(filename))
         text = ''
@@ -120,7 +154,7 @@ def fix_flac_tags(filename, isvarious=0):
 
         if tf.exists():
             # metaflac command line
-            cmd = 'metaflac --no-utf8-convert'
+            cmd = 'metaflac --preserve-modtime --no-utf8-convert'
             cmd += ' --remove-all-tags'
             cmd += ' --import-tags-from={} "{}"'.format(tags_file, filename)
             run_command(cmd, 1)
@@ -133,12 +167,20 @@ def main(args):
     logging.info('Processing FLAC')
     pathlist = Path(args.folder).glob('*/*.flac')
     for path in sorted(pathlist):
-        fix_flac_tags(str(path), args.various)
+        fix_flac_tags(str(path),
+                      isvarious=args.various,
+                      discnumber=args.discnumber,
+                      disctotal=args.disctotal,
+                      tracktotal=args.tracktotal)
 
     logging.info('Processing DSF')
     pathlist = Path(args.folder).glob('*/*.dsf')
     for path in sorted(pathlist):
-        fix_dsf_tags(str(path), args.various)
+        fix_dsf_tags(str(path),
+                     isvarious=args.various,
+                     discnumber=args.discnumber,
+                     disctotal=args.disctotal,
+                     tracktotal=args.tracktotal)
 
 
 log_file = '/tmp/flactag.log'
@@ -153,6 +195,18 @@ parser.add_argument('--various', '-v',
                     default=0)
 parser.add_argument('--backup', '-b',
                     help='Backup original files',
+                    type=int,
+                    default=0)
+parser.add_argument('--discnumber', '-n',
+                    help='Disc Number',
+                    type=int,
+                    default=1)
+parser.add_argument('--disctotal', '-d',
+                    help='Disc Total',
+                    type=int,
+                    default=1)
+parser.add_argument('--tracktotal', '-t',
+                    help='Track Total',
                     type=int,
                     default=0)
 
