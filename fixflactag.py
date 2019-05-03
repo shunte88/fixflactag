@@ -82,9 +82,9 @@ def fix_dsf_tags(filename,
 def fix_flac_tags(filename,
                   isvarious=0,
                   replay_gain='+5.500000 dB',
-                  discnumber=-1,
-                  disctotal=-1,
-                  tracktotal=-1):
+                  discnumber=0,
+                  disctotal=0,
+                  tracktotal=0):
 
     changed = False
 
