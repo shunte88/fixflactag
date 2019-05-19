@@ -97,6 +97,11 @@ def fix_flac_tags(filename,
     if tf.exists():
         tf.unlink()
 
+    if 0 == isvarious:
+        if 'COMPILATION' in flac_comment:
+            if 'Y' == flac_comment['COMPILATION'][0]:
+                isvarious = 1
+
     # add the replaygain bump for vinyl rips
     if 'CONTACT' in flac_comment and \
        'VinylStudio' == flac_comment['CONTACT'][0]:
