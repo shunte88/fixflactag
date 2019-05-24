@@ -9,6 +9,15 @@ import glob
 from pathlib import Path
 from metaflac import MetaFlac
 from metadsf import MetaDsf
+import contextlib
+
+
+@contextlib.contextmanager
+def ignored(*exceptions):
+    try:
+        yield
+    except exceptions:
+        pass
 
 
 def run_command(cmd, exc=0):
@@ -25,13 +34,6 @@ def run_command(cmd, exc=0):
     return False
 
 
-def add_delimited_tag(tag, tags=None):
-    if tags:
-        return '{},{}'.format(tags, tag)
-    else:
-        return tag
-
-
 def fix_dsf_tags(filename,
                  isvarious=0,
                  replay_gain='+5.500000 dB',
@@ -40,7 +42,7 @@ def fix_dsf_tags(filename,
                  tracktotal=-1):
 
     changed = False
-    remove_tags = None
+    remove_tags = []
     add_tags = None
 
     metadsf = MetaDsf(filename)
@@ -48,7 +50,7 @@ def fix_dsf_tags(filename,
 
     if 'TENC' in dsf_tags and 'VinylStudio' == dsf_tags['TENC']:
         dsf_tags.pop('TENC', None)
-        remove_tags = add_delimited_tag('TENC', remove_tags)
+        remove_tags.append('TENC')
         logging.debug('Delete TENC Tag')
         changed = True
 
@@ -56,7 +58,7 @@ def fix_dsf_tags(filename,
        'COMM' in dsf_tags and \
        dsf_tags['TIT1'] == dsf_tags['COMM']:
         dsf_tags.pop('TIT1', None)
-        remove_tags = add_delimited_tag('TIT1', remove_tags)
+        remove_tags.append('TIT1')
         logging.debug('Delete TIT1 Tag')
         changed = True
 
@@ -71,8 +73,8 @@ def fix_dsf_tags(filename,
         logging.debug('Rewrite DSF tags on "{}"'.format(filename))
         # metadsf command line - heavily buttoned down
         cmd = 'metadsf --encoding=UTF8'
-        if remove_tags:
-            cmd += ' --remove-tags={}'.format(remove_tags)
+        if 0 != len(remove_tags):
+            cmd += ' --remove-tags={}'.format(','.join(remove_tags))
         if add_tags:
             cmd += ' {}'.format(add_tags)
         cmd += ' "{}"'.format(filename)
@@ -98,9 +100,8 @@ def fix_flac_tags(filename,
         tf.unlink()
 
     if 0 == isvarious:
-        if 'COMPILATION' in flac_comment:
-            if 'Y' == flac_comment['COMPILATION'][0]:
-                isvarious = 1
+        with ignored(KeyError, IndexError):
+            isvarious = int('Y' == flac_comment['COMPILATION'][0])
 
     # add the replaygain bump for vinyl rips
     if 'CONTACT' in flac_comment and \
@@ -118,7 +119,7 @@ def fix_flac_tags(filename,
             changed = True
 
     # patch for missing album artist
-    # isvarious we hould really delete the album artist tag if exists
+    # isvarious we should really delete the album artist tag if exists
     if 0 == isvarious and \
        'ALBUMARTIST' not in flac_comment and \
        'ALBUM ARTIST' not in flac_comment:
@@ -135,6 +136,21 @@ def fix_flac_tags(filename,
                 logging.debug('Adding YEAR Tag')
                 changed = True
 
+    # fix disktotal, disknumber tag typo
+
+    for test_tag in ('DISKNUMBER', 'DISKTOTAL'):
+        if test_tag in flac_comment:
+            new_tag = test_tag.replace('K', 'C')
+            if new_tag not in flac_comment:
+                value = '01'
+                with ignored(KeyError, ValueError):
+                    value = str(int(flac_comment[test_tag][0])).zfill(2)
+                flac_comment[new_tag].append(value)
+                logging.debug('Adding {} Tag'.format(new_tag))
+            logging.debug('Cleanup {} Tag'.format(test_tag))
+            flac_comment.pop(test_tag, None)
+            changed = True
+
     if (discnumber+disctotal+tracktotal) > 0:
         for test_tag in ('DISCNUMBER', 'DISCTOTAL', 'TRACKTOTAL'):
             if test_tag not in flac_comment:
@@ -145,7 +161,7 @@ def fix_flac_tags(filename,
                 else:
                     value = tracktotal
                 if value > 0:
-                    flac_comment[test_tag].append(value)
+                    flac_comment[test_tag].append(str(value).zfill(2))
                     logging.debug('Adding {} Tag'.format(test_tag))
                     changed = True
 
