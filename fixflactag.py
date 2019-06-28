@@ -65,25 +65,25 @@ def fix_dsf_tags(filename,
     if 'TORY' not in dsf_tags and \
        'TDRC' in dsf_tags:
         dsf_tags['TORY'] = dsf_tags['TDRC']
-        add_tags = '--add-tag=TORY={}'.format(dsf_tags['TDRC'])
+        add_tags = f"--add-tag=TORY={dsf_tags['TDRC']}"
         logging.debug('Add TORY Tag')
         changed = True
 
     if changed:
-        logging.debug('Rewrite DSF tags on "{}"'.format(filename))
+        logging.debug(f'Rewrite DSF tags on "{filename}"')
         # metadsf command line - heavily buttoned down
         cmd = 'metadsf --encoding=UTF8'
         if 0 != len(remove_tags):
             cmd += ' --remove-tags={}'.format(','.join(remove_tags))
         if add_tags:
-            cmd += ' {}'.format(add_tags)
-        cmd += ' "{}"'.format(filename)
+            cmd += f' {add_tags}'
+        cmd += f' "{filename}"'
         run_command(cmd, 1)
 
 
 def fix_flac_tags(filename,
                   isvarious=0,
-                  replay_gain='+5.500000 dB',
+                  replay_gain='+8.500000 dB',
                   discnumber=0,
                   disctotal=0,
                   tracktotal=0):
@@ -112,10 +112,14 @@ def fix_flac_tags(filename,
             changed = True
 
     # dump redundant tags
-    for redundant in ('CONTACT', 'LOCATION', 'GROUPING'):
+    red_tags = ('CONTACT', 'LOCATION', 'GROUPING')
+    if 1 == isvarious:
+        red_tags += ('ALBUMARTIST', 'ALBUM ARTIST')
+
+    for redundant in red_tags:
         if redundant in flac_comment:
             flac_comment.pop(redundant, None)
-            logging.debug('Delete {} Tag'.format(redundant))
+            logging.debug(f'Delete {redundant} Tag')
             changed = True
 
     # patch for missing album artist
@@ -128,13 +132,18 @@ def fix_flac_tags(filename,
             logging.debug('Adding ALBUMARTIST Tag')
             changed = True
 
+    if 'DATE' in flac_comment:
+        if len(flac_comment['DATE']) > 1:
+            flac_comment['DATE'] = flac_comment['DATE'][:1]
+            logging.debug('Cleanup DATE Tag')
+            changed = True
+
     # patch for missing year
     if 'YEAR' not in flac_comment:
         if 'DATE' in flac_comment:
-            for year in flac_comment['DATE']:
-                flac_comment['YEAR'].append(year)
-                logging.debug('Adding YEAR Tag')
-                changed = True
+            flac_comment['YEAR'].append(flac_comment['DATE'][0])
+            logging.debug('Adding YEAR Tag')
+            changed = True
 
     # fix disktotal, disknumber tag typo
 
@@ -146,8 +155,8 @@ def fix_flac_tags(filename,
                 with ignored(KeyError, ValueError):
                     value = str(int(flac_comment[test_tag][0])).zfill(2)
                 flac_comment[new_tag].append(value)
-                logging.debug('Adding {} Tag'.format(new_tag))
-            logging.debug('Cleanup {} Tag'.format(test_tag))
+                logging.debug(f'Adding {new_tag} Tag')
+            logging.debug(f'Cleanup {test_tag} Tag')
             flac_comment.pop(test_tag, None)
             changed = True
 
@@ -162,22 +171,22 @@ def fix_flac_tags(filename,
                     value = tracktotal
                 if value > 0:
                     flac_comment[test_tag].append(str(value).zfill(2))
-                    logging.debug('Adding {} Tag'.format(test_tag))
+                    logging.debug(f'Adding {test_tag} Tag')
                     changed = True
 
     if changed:
-        logging.debug('Rewrite FLAC tags on "{}"'.format(filename))
+        logging.debug(f'Rewrite FLAC tags on "{filename}"')
         text = ''
         for k, v in sorted(flac_comment.items()):
             for vv in v:
-                text += "{}={}\n".format(k, vv)
+                text += f"{k}={vv}\n"
         tf.write_text(text)
 
         if tf.exists():
             # metaflac command line
             cmd = 'metaflac --preserve-modtime --no-utf8-convert'
             cmd += ' --remove-all-tags'
-            cmd += ' --import-tags-from={} "{}"'.format(tags_file, filename)
+            cmd += f' --import-tags-from={tags_file} "{filename}"'
             run_command(cmd, 1)
             # cleanup
             tf.unlink()
