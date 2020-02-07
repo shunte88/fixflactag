@@ -86,7 +86,8 @@ def fix_flac_tags(filename,
                   replay_gain='+8.500000 dB',
                   discnumber=0,
                   disctotal=0,
-                  tracktotal=0):
+                  tracktotal=0,
+                  swaptags=0):
 
     changed = False
 
@@ -102,6 +103,14 @@ def fix_flac_tags(filename,
     if 0 == isvarious:
         with ignored(KeyError, IndexError):
             isvarious = int('Y' == flac_comment['COMPILATION'][0])
+            if 0 == isvarious:
+                with ignored(KeyError, IndexError):
+                    isvarious = int(0 != flac_comment['ALBUMARTIST'][0].lower().find("various"))
+                    if 0 == isvarious:
+                        with ignored(KeyError, IndexError):
+                            isvarious = int(0 != flac_comment['ALBUM ARTIST'][0].lower().find("various"))
+
+    print(f"various:{isvarious}, swaptags:{swaptags}")
 
     # add the replaygain bump for vinyl rips
     if 'CONTACT' in flac_comment and \
@@ -115,12 +124,21 @@ def fix_flac_tags(filename,
     red_tags = ('CONTACT', 'LOCATION', 'GROUPING')
     if 1 == isvarious:
         red_tags += ('ALBUMARTIST', 'ALBUM ARTIST')
+        if 'COMPILATION' not in flac_comment:
+            flac_comment['COMPILATION'].append('Y')
 
     for redundant in red_tags:
         if redundant in flac_comment:
             flac_comment.pop(redundant, None)
             logging.debug(f'Delete {redundant} Tag')
             changed = True
+
+    if swaptags:
+        print(f">> {flac_comment['ARTIST'][0]}:: {flac_comment['TITLE'][0]}")
+        flac_comment['ARTIST'][0], flac_comment['TITLE'][0] = \
+            flac_comment['TITLE'][0], flac_comment['ARTIST'][0]
+        print(f"<< {flac_comment['ARTIST'][0]}:: {flac_comment['TITLE'][0]}")
+        changed = True
 
     # patch for missing album artist
     # isvarious we should really delete the album artist tag if exists
@@ -201,7 +219,8 @@ def main(args):
                       isvarious=args.various,
                       discnumber=args.discnumber,
                       disctotal=args.disctotal,
-                      tracktotal=args.tracktotal)
+                      tracktotal=args.tracktotal,
+                      swaptags=args.swap)
 
     logging.info('Processing DSF')
     pathlist = Path(args.folder).glob('*/*.dsf')
@@ -210,7 +229,8 @@ def main(args):
                      isvarious=args.various,
                      discnumber=args.discnumber,
                      disctotal=args.disctotal,
-                     tracktotal=args.tracktotal)
+                     tracktotal=args.tracktotal,
+                     swaptags=args.swap)
 
 
 log_file = '/tmp/flactag.log'
@@ -235,6 +255,10 @@ parser.add_argument('--disctotal', '-d',
                     help='Disc Total',
                     type=int,
                     default=1)
+parser.add_argument('--swap', '-s',
+                    help='Swap Artist and Title',
+                    type=int,
+                    default=0)
 parser.add_argument('--tracktotal', '-t',
                     help='Track Total',
                     type=int,
