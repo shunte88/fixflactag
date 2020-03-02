@@ -6,6 +6,7 @@ import argparse
 import logging
 import subprocess
 import glob
+import datetime
 from pathlib import Path
 from metaflac import MetaFlac
 from metadsf import MetaDsf
@@ -90,6 +91,7 @@ def fix_flac_tags(filename,
                   swaptags=0):
 
     changed = False
+    today = datetime.date.today()
 
     metaflac = MetaFlac(filename)
     flac_comment, changed = metaflac.get_vorbis_comment()
@@ -109,8 +111,6 @@ def fix_flac_tags(filename,
                     if 0 == isvarious:
                         with ignored(KeyError, IndexError):
                             isvarious = int(0 != flac_comment['ALBUM ARTIST'][0].lower().find("various"))
-
-    print(f"various:{isvarious}, swaptags:{swaptags}")
 
     # add the replaygain bump for vinyl rips
     if 'CONTACT' in flac_comment and \
@@ -156,11 +156,15 @@ def fix_flac_tags(filename,
             logging.debug('Cleanup DATE Tag')
             changed = True
 
-    # patch for missing year
-    if 'YEAR' not in flac_comment:
-        if 'DATE' in flac_comment:
-            flac_comment['YEAR'].append(flac_comment['DATE'][0])
-            logging.debug('Adding YEAR Tag')
+    # add signature if not present
+    if 'COMMENT' not in flac_comment:
+        flac_comment['COMMENT'].append(f'FixFlac {today}')
+        logging.debug('Adding COMMENT Tag')
+        changed = True
+    else:
+        # address multi-line comments
+        if "\n" in flac_comment['COMMENT']:
+            logging.debug('Fix multi-line COMMENT Tag')
             changed = True
 
     # fix disktotal, disknumber tag typo
@@ -197,6 +201,10 @@ def fix_flac_tags(filename,
         text = ''
         for k, v in sorted(flac_comment.items()):
             for vv in v:
+                if "\n" in vv:
+                    vv = vv.replace('\r\n', ' ')
+                    vv = vv.replace('\n', ' ')
+                    vv = vv.replace('\r', ' ')
                 text += f"{k}={vv}\n"
         tf.write_text(text)
 
