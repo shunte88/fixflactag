@@ -37,7 +37,7 @@ def run_command(cmd, exc=0):
 
 def fix_dsf_tags(filename,
                  isvarious=0,
-                 replay_gain='+5.500000 dB',
+                 replay_gain='+8.500000 dB',
                  discnumber=-1,
                  disctotal=-1,
                  tracktotal=-1):
@@ -94,7 +94,10 @@ def fix_flac_tags(filename,
     today = datetime.date.today()
 
     metaflac = MetaFlac(filename)
-    flac_comment, changed = metaflac.get_vorbis_comment()
+    flac_comment, changed, ID3_tags = metaflac.get_vorbis_comment()
+
+    if ID3_tags:
+        changed = True
 
     tags_file = '%d.tag' % (os.getpid())
     tf = Path(tags_file)
@@ -209,6 +212,11 @@ def fix_flac_tags(filename,
         tf.write_text(text)
 
         if tf.exists():
+
+            if ID3_tags:
+                cmd = f'id3v2 --delete-all "{filename}"'
+                run_command(cmd, 1)
+
             # metaflac command line
             cmd = 'metaflac --preserve-modtime --no-utf8-convert'
             cmd += ' --remove-all-tags'
