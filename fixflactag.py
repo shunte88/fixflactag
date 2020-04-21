@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#/usr/bin/python3
 
 import os
 import sys
@@ -40,7 +40,8 @@ def fix_dsf_tags(filename,
                  replay_gain='+8.500000 dB',
                  discnumber=-1,
                  disctotal=-1,
-                 tracktotal=-1):
+                 tracktotal=-1,
+                 swaptags=0):
 
     changed = False
     remove_tags = []
@@ -91,6 +92,7 @@ def fix_flac_tags(filename,
                   swaptags=0):
 
     changed = False
+    vinyl_rip = '24bVR'
     today = datetime.date.today()
 
     metaflac = MetaFlac(filename)
@@ -121,6 +123,50 @@ def fix_flac_tags(filename,
         if 'REPLAYGAIN_TRACK_GAIN' not in flac_comment:
             flac_comment['REPLAYGAIN_TRACK_GAIN'].append(replay_gain)
             logging.debug('Adding REPLAYGAIN_TRACK_GAIN Tag')
+            changed = True
+
+    with ignored(KeyError, IndexError):
+        if 'inyl' in flac_comment['COMMENTS'][0] or \
+        'Digitally' in flac_comment['COMMENTS'][0] or \
+        'inyl' in flac_comment['COMMENT'][0] or \
+        'Digitally' in flac_comment['COMMENT'][0]:
+            if 'REPLAYGAIN_TRACK_GAIN' not in flac_comment:
+                flac_comment['REPLAYGAIN_TRACK_GAIN'].append(replay_gain)
+                logging.debug('Add REPLAYGAIN_TRACK_GAIN Tag')
+                changed = True
+            flac_comment.pop('COMMENTS', None)
+            changed = True
+
+    with ignored(KeyError, IndexError):
+        if 'NAD' in flac_comment['COMMENTS'][0]:
+            if 'REPLAYGAIN_TRACK_GAIN' not in flac_comment:
+                flac_comment['REPLAYGAIN_TRACK_GAIN'].append(replay_gain)
+                logging.debug('Add REPLAYGAIN_TRACK_GAIN Tag')
+                flac_comment.pop('COMMENTS', None)
+                changed = True
+        if 'NAD' in flac_comment['COMMENT'][0]:
+            if 'REPLAYGAIN_TRACK_GAIN' not in flac_comment:
+                flac_comment['REPLAYGAIN_TRACK_GAIN'].append(replay_gain)
+                logging.debug('Add REPLAYGAIN_TRACK_GAIN Tag')
+                changed = True
+        if vinyl_rip in flac_comment['ALBUM'][0]:
+            if 'REPLAYGAIN_TRACK_GAIN' not in flac_comment:
+                flac_comment['REPLAYGAIN_TRACK_GAIN'].append(replay_gain)
+                logging.debug('Add REPLAYGAIN_TRACK_GAIN Tag')
+                changed = True
+        if 'inyl' in flac_comment['COMMENT'][0] or 'Digitally' in flac_comment['COMMENT'][0]:
+            if 'REPLAYGAIN_TRACK_GAIN' not in flac_comment:
+                flac_comment['REPLAYGAIN_TRACK_GAIN'].append(replay_gain)
+                logging.debug('Add REPLAYGAIN_TRACK_GAIN Tag')
+                changed = True
+            flac_comment.pop('COMMENT', None)
+            changed = True
+        if 'inyl' in flac_comment['COMMENTS'][0] or 'Digitally' in flac_comment['COMMENTS'][0]:
+            if 'REPLAYGAIN_TRACK_GAIN' not in flac_comment:
+                flac_comment['REPLAYGAIN_TRACK_GAIN'].append(replay_gain)
+                logging.debug('Add REPLAYGAIN_TRACK_GAIN Tag')
+                changed = True
+            flac_comment.pop('COMMENTS', None)
             changed = True
 
     # dump redundant tags
@@ -168,7 +214,13 @@ def fix_flac_tags(filename,
         # address multi-line comments
         if "\n" in flac_comment['COMMENT']:
             logging.debug('Fix multi-line COMMENT Tag')
+            flac_comment.pop('COMMENT', None)
             changed = True
+
+    if 'COMMENT' not in flac_comment:
+        flac_comment['COMMENT'].append(f'FixFlac {today}')
+        logging.debug('Adding COMMENT Tag')
+        changed = True
 
     # fix disktotal, disknumber tag typo
 
