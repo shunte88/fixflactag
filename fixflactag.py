@@ -10,6 +10,7 @@ import datetime
 from pathlib import Path
 from metaflac import MetaFlac
 from metadsf import MetaDsf
+import re
 import contextlib
 
 
@@ -126,6 +127,18 @@ def fix_flac_tags(filename,
             changed = True
 
     with ignored(KeyError, IndexError):
+        if 'FFZ' in flac_comment['COMMENTS'][0]:
+            logging.debug('Default COMMENT Tag')
+            flac_comment.pop('COMMENTS', None)
+            changed = True
+
+    with ignored(KeyError, IndexError):
+        if 'FFZ' in flac_comment['COMMENT'][0]:
+            logging.debug('Default COMMENT Tag')
+            flac_comment.pop('COMMENT', None)
+            changed = True
+
+    with ignored(KeyError, IndexError):
         if 'inyl' in flac_comment['COMMENTS'][0] or \
         'Digitally' in flac_comment['COMMENTS'][0] or \
         'inyl' in flac_comment['COMMENT'][0] or \
@@ -168,6 +181,17 @@ def fix_flac_tags(filename,
                 changed = True
             flac_comment.pop('COMMENTS', None)
             changed = True
+
+    if 'CATALOGNUMBER' not in flac_comment:
+        regex = r'\[([^\[]*)\][^\[]*$'
+        unpack = re.split(regex,
+                          flac_comment['ALBUM'][0],
+                          maxsplit=1)
+        if unpack:
+            flac_comment['CATALOGNUMBER'].append(unpack[1].strip())
+            logging.debug('Adding CATALOGNUMBER Tag')
+            changed = True
+
 
     # dump redundant tags
     red_tags = ('CONTACT', 'LOCATION', 'GROUPING')
