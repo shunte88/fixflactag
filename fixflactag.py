@@ -314,7 +314,10 @@ def fix_flac_tags(filename,
             # metaflac command line
             cmd = 'metaflac --preserve-modtime --no-utf8-convert'
             cmd += ' --remove-all-tags'
-            cmd += f' --import-tags-from={tags_file} "{filename}"'
+            if '"' in filename:
+                cmd += f" --import-tags-from={tags_file} '{filename}'"
+            else:
+                cmd += f' --import-tags-from={tags_file} "{filename}"'
             run_command(cmd, 1)
             # cleanup
             tf.unlink()
