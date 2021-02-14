@@ -127,23 +127,23 @@ def fix_flac_tags(filename,
             changed = True
 
     with ignored(KeyError, IndexError):
-        if 'ffz' in flac_comment['COMMENTS'][0] or 'FFZ' in flac_comment['COMMENTS'][0]:
+        if 'ffz' in flac_comment['COMMENTS'][0] or 'FFZ' in flac_comment['COMMENTS'][0] or '' == flac_comment['COMMENTS'][0].strip():
             logging.debug('Default COMMENT Tag')
             flac_comment.pop('COMMENTS', None)
             changed = True
     with ignored(KeyError, IndexError):
-        if 'fzz' in flac_comment['COMMENTS'][0] or 'FZZ' in flac_comment['COMMENTS'][0]:
+        if 'fzz' in flac_comment['COMMENTS'][0] or 'FZZ' in flac_comment['COMMENTS'][0] or '' == flac_comment['COMMENTS'][0].strip():
             logging.debug('Default COMMENT Tag')
             flac_comment.pop('COMMENTS', None)
             changed = True
 
     with ignored(KeyError, IndexError):
-        if 'ffz' in flac_comment['COMMENT'][0] or 'FFZ' in flac_comment['COMMENT'][0]:
+        if 'ffz' in flac_comment['COMMENT'][0] or 'FFZ' in flac_comment['COMMENT'][0] or '' == flac_comment['COMMENT'][0].strip():
             logging.debug('Default COMMENT Tag')
             flac_comment.pop('COMMENT', None)
             changed = True
     with ignored(KeyError, IndexError):
-        if 'fzz' in flac_comment['COMMENT'][0] or 'FZZ' in flac_comment['COMMENT'][0]:
+        if 'fzz' in flac_comment['COMMENT'][0] or 'FZZ' in flac_comment['COMMENT'][0] or '' == flac_comment['COMMENT'][0].strip():
             logging.debug('Default COMMENT Tag')
             flac_comment.pop('COMMENT', None)
             changed = True
@@ -263,6 +263,11 @@ def fix_flac_tags(filename,
         flac_comment['COMMENT'].append(f'FixFlac {today}')
         logging.debug('Adding COMMENT Tag')
         changed = True
+
+    for test_tag in ('MEDIA','DESCRIPTION','URL_DISCOGS_RELEASE_SITE'):
+        if test_tag in flac_comment:
+            flac_comment.pop(test_tag, None)
+            changed = True
 
     # fix disktotal, disknumber tag typo
 
