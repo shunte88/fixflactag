@@ -110,7 +110,8 @@ def fix_flac_tags(filename,
 
     if 0 == isvarious:
         with ignored(KeyError, IndexError):
-            isvarious = int('Y' == flac_comment['COMPILATION'][0])
+            # ensure boolean attrs supported
+            isvarious = int(flac_comment['COMPILATION'][0] in ('1','True','Y'))
             if 0 == isvarious:
                 with ignored(KeyError, IndexError):
                     isvarious = int(0 != flac_comment['ALBUMARTIST'][0].lower().find("various"))
