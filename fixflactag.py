@@ -232,15 +232,23 @@ def fix_flac_tags(filename,
         print(f"<< {flac_comment['ARTIST'][0]}:: {flac_comment['TITLE'][0]}")
         changed = True
 
+    for idx, artist in enumerate(flac_comment['ARTIST']):
+        if 'none'==artist.lower():
+            flac_comment['ARTIST'].pop(idx)
+            logging.debug('Cleanup ARTIST Tag')
+            changed = True
+
+
     # patch for missing album artist
     # isvarious we should really delete the album artist tag if exists
     if 0 == isvarious and \
        'ALBUMARTIST' not in flac_comment and \
        'ALBUM ARTIST' not in flac_comment:
         for artist in flac_comment['ARTIST']:
-            flac_comment['ALBUMARTIST'].append(artist)
-            logging.debug('Adding ALBUMARTIST Tag')
-            changed = True
+            if 'none'!=artist.lower():
+                flac_comment['ALBUMARTIST'].append(artist)
+                logging.debug('Adding ALBUMARTIST Tag')
+                changed = True
 
     if 'DATE' in flac_comment:
         if len(flac_comment['DATE']) > 1:
@@ -308,7 +316,9 @@ def fix_flac_tags(filename,
                     vv = vv.replace('\r\n', ' ')
                     vv = vv.replace('\n', ' ')
                     vv = vv.replace('\r', ' ')
-                text += f"{k}={vv}\n"
+                if vv!='None' and vv!='Not On Label':
+                    if vv:
+                        text += f"{k}={vv}\n"
         tf.write_text(text)
 
         if tf.exists():
